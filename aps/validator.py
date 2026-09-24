@@ -6,6 +6,7 @@ from .parser import REQUIRED_SHEETS, clean_label, detected_columns, get_schedule
 
 
 VALID_PRIORITIES = {"急單", "一般", "低優先"}
+EMPTY_ORDERS_MESSAGE = "待排工單目前沒有資料，請至少填寫一筆完整工單後重新上傳，或載入東福標準排程資料。"
 PRIORITY_ALIASES = {
     "urgent": "急單",
     "rush": "急單",
@@ -39,6 +40,9 @@ def validate_workbook(workbook: dict[str, pd.DataFrame]) -> tuple[bool, list[str
     orders = data["待排工單"]
     rates = data["產品機台產速"]
     settings = data["排程基本設定"]
+
+    if orders.empty:
+        return False, [EMPTY_ORDERS_MESSAGE], None
 
     required_order_cols = ["工單編號", "產品", "數量", "單位", "優先級", "交期"]
     required_rate_cols = ["產品", "機台", "產速_PCS_per_hr"]

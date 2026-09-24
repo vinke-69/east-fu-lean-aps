@@ -7,6 +7,7 @@ import pandas as pd
 
 from .parser import get_schedule_window, normalize_workbook
 from .strategies import sort_orders
+from .validator import EMPTY_ORDERS_MESSAGE
 
 
 MACHINES = ["C2", "C4", "C5"]
@@ -169,6 +170,8 @@ def schedule(
         workbook = normalize_workbook(workbook)
     manual_machine_overrides = manual_machine_overrides or {}
     orders = workbook["待排工單"].copy()
+    if orders.empty:
+        raise ValueError(EMPTY_ORDERS_MESSAGE)
     rates = workbook["產品機台產速"].copy()
     settings = workbook["排程基本設定"]
     availability = workbook.get("機台可用時間", pd.DataFrame()).copy()

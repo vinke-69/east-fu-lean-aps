@@ -18,7 +18,7 @@ from aps.parser import clean_label, get_schedule_window, load_workbook
 from aps.sample_data import write_demo_excel
 from aps.scheduler import MACHINES, schedule
 from aps.strategies import STRATEGIES
-from aps.validator import validate_workbook
+from aps.validator import EMPTY_ORDERS_MESSAGE, validate_workbook
 from ui.charts import comparison_bar
 from ui.gantt import make_gantt
 
@@ -346,6 +346,8 @@ else:
     ok, issues, data_or_none = st.session_state.validation
     if ok and data_or_none is not None:
         st.success(f"資料驗證通過：{len(data_or_none['待排工單'])} / {len(data_or_none['待排工單'])} orders valid")
+    elif issues == [EMPTY_ORDERS_MESSAGE]:
+        st.warning(EMPTY_ORDERS_MESSAGE)
     else:
         st.error(f"Excel 格式有問題，發現 {len(issues)} 個問題")
         for issue in issues:

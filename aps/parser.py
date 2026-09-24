@@ -136,6 +136,8 @@ def normalize_settings_frame(frame: pd.DataFrame) -> pd.DataFrame:
 
 
 def normalize_due_dates(series: pd.Series) -> pd.Series:
+    if series.empty:
+        return pd.to_datetime(series, errors="coerce")
     original = series.copy()
     try:
         parsed = pd.to_datetime(series, errors="coerce", format="mixed")
