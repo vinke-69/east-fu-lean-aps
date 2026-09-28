@@ -192,7 +192,7 @@ def _upsert_setting(settings: pd.DataFrame, item: str, value: object) -> pd.Data
 
 
 def normalize_workbook(workbook: dict[str, pd.DataFrame]) -> dict[str, pd.DataFrame]:
-    normalized = {clean_label(name): normalize_columns(frame.copy()) for name, frame in workbook.items()}
+    normalized = {clean_label(name): (frame.copy() if name == "匯入未排工單" else normalize_columns(frame.copy())) for name, frame in workbook.items()}
     if "待排工單" in normalized:
         orders = normalized["待排工單"]
         if "交期" in orders.columns:

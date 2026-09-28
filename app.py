@@ -21,6 +21,7 @@ from aps.strategies import STRATEGIES
 from aps.validator import EMPTY_ORDERS_MESSAGE, validate_workbook
 from ui.charts import comparison_bar
 from ui.gantt import make_gantt
+from ui.order_import import invalidate_schedule, render_order_import
 
 
 PROJECT_ROOT = Path(__file__).resolve().parent
@@ -321,23 +322,34 @@ init_state()
 st.title("東福精實生產排程系統")
 st.caption("Excel 驅動的 Lean APS 排程與決策支援工具")
 
-top = st.columns([1, 2])
-with top[0]:
-    if st.button("載入東福標準排程資料", type="primary", use_container_width=True):
-        load_demo()
-with top[1]:
-    uploaded = st.file_uploader("上傳排程 Excel", type=["xlsx"], label_visibility="collapsed")
-    if uploaded is not None:
-        try:
-            st.session_state.workbook = load_workbook(uploaded)
-            st.session_state.validation = validate_workbook(st.session_state.workbook)
-            if has_timing_defaults(st.session_state.workbook) and st.session_state.validation[0] and st.session_state.validation[2] is not None:
-                apply_workbook_defaults(st.session_state.validation[2])
-            st.session_state.upload_filename = uploaded.name
-            st.session_state.schedule_df = None
-            st.session_state.kpis = None
-        except Exception:
-            st.error("Excel 格式有問題，無法讀取工作簿。")
+input_mode = st.radio("資料來源", ["原排程格式／範例", "訂單拋轉＋資料庫"], horizontal=True)
+if st.session_state.get("previous_input_mode", input_mode) != input_mode:
+    invalidate_schedule()
+    st.session_state.pop("original_upload_signature", None)
+st.session_state.previous_input_mode = input_mode
+if input_mode == "訂單拋轉＋資料庫":
+    render_order_import()
+else:
+    top = st.columns([1, 2])
+    with top[0]:
+        if st.button("載入東福標準排程資料", type="primary", use_container_width=True):
+            load_demo()
+    with top[1]:
+        uploaded = st.file_uploader("上傳排程 Excel", type=["xlsx"], label_visibility="collapsed")
+        if uploaded is not None:
+            from hashlib import sha256
+            signature = (uploaded.name, sha256(uploaded.getvalue()).hexdigest())
+            if st.session_state.get("original_upload_signature") != signature:
+                invalidate_schedule()
+                try:
+                    st.session_state.workbook = load_workbook(uploaded)
+                    st.session_state.validation = validate_workbook(st.session_state.workbook)
+                    if has_timing_defaults(st.session_state.workbook) and st.session_state.validation[0] and st.session_state.validation[2] is not None:
+                        apply_workbook_defaults(st.session_state.validation[2])
+                    st.session_state.upload_filename = uploaded.name
+                    st.session_state.original_upload_signature = signature
+                except Exception:
+                    st.error("Excel 格式有問題，無法讀取工作簿。")
 
 data = valid_data()
 if st.session_state.validation is None:
@@ -420,7 +432,9 @@ with st.expander("基本設定", expanded=data is not None):
         st.session_state.exclude_weekends = st.checkbox("週末不排程（星期六、星期日）", value=bool(st.session_state.exclude_weekends))
         st.session_state.non_working_dates = st.text_area("指定日期不排程（國定假日 / 盤點 / 全廠休假）", value=st.session_state.non_working_dates, placeholder="例如：\n2026-09-28\n2026-10-10")
         st.caption("產品原則上可用機台請填在產品機台產速表；單張工單若有特殊限制，可在 `工單限定機台` 填 C5 或 C4,C5。")
-        edited_rates = st.data_editor(data["產品機台產速"], use_container_width=True, num_rows="dynamic")
+        if input_mode == "訂單拋轉＋資料庫":
+            st.caption("訂單匯入的產速與換模群組由已確認的來源計算；如需修正，請更新資料庫並重新確認對應。")
+        edited_rates = st.data_editor(data["產品機台產速"], use_container_width=True, num_rows="fixed" if input_mode == "訂單拋轉＋資料庫" else "dynamic", disabled=input_mode == "訂單拋轉＋資料庫")
         changeover_source = data.get("換模時間", pd.DataFrame(columns=["來源換模群組", "目標換模群組", "換模時間_分鐘"]))
         edited_changeovers = st.data_editor(changeover_source, use_container_width=True, num_rows="dynamic")
         if st.button("保存產品 / 機台產速 / 換模時間"):

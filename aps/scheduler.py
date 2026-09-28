@@ -170,6 +170,11 @@ def schedule(
         workbook = normalize_workbook(workbook)
     manual_machine_overrides = manual_machine_overrides or {}
     orders = workbook["待排工單"].copy()
+    if "匯入未排工單" in workbook:
+        from .import_orders import batch_must_stop
+        problems = len(workbook["匯入未排工單"])
+        if batch_must_stop(len(orders) + problems, problems):
+            raise ValueError("問題工單比例達 30%，整批停止；請先處理匯入缺漏。")
     if orders.empty:
         raise ValueError(EMPTY_ORDERS_MESSAGE)
     rates = workbook["產品機台產速"].copy()
@@ -281,4 +286,7 @@ def schedule(
     result = pd.DataFrame(rows)
     if not result.empty:
         result["數量"] = result["數量"].apply(lambda v: int(v) if math.isclose(v, int(v)) else v)
+    if "匯入未排工單" in workbook:
+        from .import_pipeline import attach_import_results
+        result = attach_import_results(result, workbook)
     return result

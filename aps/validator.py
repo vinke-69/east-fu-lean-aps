@@ -41,6 +41,12 @@ def validate_workbook(workbook: dict[str, pd.DataFrame]) -> tuple[bool, list[str
     rates = data["產品機台產速"]
     settings = data["排程基本設定"]
 
+    if "匯入未排工單" in data:
+        from .import_orders import batch_must_stop
+        problematic = len(data["匯入未排工單"])
+        if batch_must_stop(len(orders) + problematic, problematic):
+            return False, ["問題工單比例達 30%，整批停止；請先處理匯入缺漏。"], None
+
     if orders.empty:
         return False, [EMPTY_ORDERS_MESSAGE], None
 
